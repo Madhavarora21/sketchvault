@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Excalidraw ES module package hai, isliye transpile karna zaroori hai
+  transpilePackages: ["@excalidraw/excalidraw"],
   turbopack: {
     rules: {
       "*.css": {
