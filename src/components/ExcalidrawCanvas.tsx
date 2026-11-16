@@ -2,14 +2,15 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
-import { saveDrawing } from "@/actions/drawing";
+import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
+import { getPublicDrawingState, saveDrawing } from "@/actions/drawing";
 import "@excalidraw/excalidraw/index.css";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
   {
     ssr: false,
-    loading: () => <p className="p-6">Canvas load ho raha hai...</p>,
+    loading: () => <p className="p-6">Loading canvas...</p>,
   }
 );
 
@@ -17,6 +18,9 @@ type Props = {
   id?: string;
   initialData: string;
   readOnly?: boolean;
+  // Live view: public page par ye do props do
+  liveShareId?: string;
+  liveSince?: string;
 };
 
 function parseElements(data: string) {
@@ -32,11 +36,14 @@ export default function ExcalidrawCanvas({
   id,
   initialData,
   readOnly = false,
+  liveShareId,
+  liveSince,
 }: Props) {
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
   const lastSaved = useRef(initialData);
+  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
 
   async function flush() {
     if (!id || pending.current === null) return;
@@ -61,8 +68,31 @@ export default function ExcalidrawCanvas({
     };
   }, [id]);
 
+  // Live view: har 3 second me check karo ki owner ne kuch badla ya nahi
+  useEffect(() => {
+    if (!liveShareId || !liveSince) return;
+    let since = liveSince;
+
+    const poll = setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const res = await getPublicDrawingState(liveShareId, since);
+        if (res.changed) {
+          since = res.updatedAt;
+          apiRef.current?.updateScene({
+            elements: parseElements(res.data) as never,
+          });
+        }
+      } catch {
+        // network problem: agle round me dobara try hoga
+      }
+    }, 3000);
+
+    return () => clearInterval(poll);
+  }, [liveShareId, liveSince]);
+
   return (
-    <div className="relative h-[calc(100vh-65px)] w-full">
+    <div className="relative h-[calc(100vh-var(--navbar-height,56px)-65px)] w-full">
       {!readOnly && (
         <span className="absolute right-4 top-3 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-600 shadow">
           {status === "saving" && "Saving..."}
@@ -71,7 +101,17 @@ export default function ExcalidrawCanvas({
         </span>
       )}
 
+      {liveShareId && (
+        <span className="absolute right-4 top-3 z-10 flex items-center gap-1.5 rounded bg-white/90 px-2 py-1 text-xs font-semibold text-[#fa5252] shadow">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-[#fa5252]" />
+          LIVE
+        </span>
+      )}
+
       <Excalidraw
+        excalidrawAPI={(api) => {
+          apiRef.current = api;
+        }}
         viewModeEnabled={readOnly}
         initialData={{
           elements: parseElements(initialData),

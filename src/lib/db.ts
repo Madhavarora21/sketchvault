@@ -18,7 +18,7 @@ globalWithMongoose.mongooseCache = cached;
 export async function connectDB() {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
-    throw new Error("MONGODB_URI .env.local me nahi mila");
+    throw new Error("MONGODB_URI is missing in .env.local");
   }
 
   if (cached.conn) return cached.conn;

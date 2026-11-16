@@ -5,6 +5,8 @@ export type DrawingDoc = {
   title: string;
   data: string;
   isPublic: boolean;
+  shareId?: string;
+  folderId?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -15,6 +17,10 @@ const DrawingSchema = new Schema<DrawingDoc>(
     title: { type: String, default: "Untitled" },
     data: { type: String, default: "[]" },
     isPublic: { type: Boolean, default: false },
+    // public link ke liye alag id (regenerate karne par purana link band ho jata hai)
+    shareId: { type: String, unique: true, sparse: true },
+    // kis folder me hai (null = kisi folder me nahi)
+    folderId: { type: String, default: null, index: true },
   },
   { timestamps: true }
 );
