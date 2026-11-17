@@ -71,3 +71,23 @@ export async function getPublicDrawingsByUser(userId: string) {
     updatedAt: new Date(d.updatedAt ?? Date.now()).toISOString(),
   }));
 }
+
+
+// Explore Creators: username se creator dhoondho (sirf yeh batata hai ki mila ya nahi)
+export async function searchCreator(
+  input: string
+): Promise<{ found: true; handle: string } | { found: false }> {
+  const username = input.trim().replace(/^@/, "").toLowerCase();
+  if (!username || username.length > 64 || !/^[a-z0-9_.-]+$/.test(username)) {
+    return { found: false };
+  }
+
+  try {
+    const client = await clerkClient();
+    const res = await client.users.getUserList({ username: [username], limit: 1 });
+    const user = res.data[0];
+    return user?.username ? { found: true, handle: user.username } : { found: false };
+  } catch {
+    return { found: false };
+  }
+}

@@ -1,68 +1,43 @@
-export const dynamic = "force-dynamic";
+import { AlertCircle, Compass } from "lucide-react";
+import CreatorSearch from "@/components/CreatorSearch";
 
-import Link from "next/link";
-import { Clock, Pencil } from "lucide-react";
-import { getPublicDrawings } from "@/actions/drawing";
-import { getAuthors } from "@/actions/profile";
-
-export default async function ExplorePage() {
-  const drawings = await getPublicDrawings();
-  const authors = await getAuthors(drawings.map((d) => d.userId));
-
+export default function ExplorePage() {
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 pb-20 pt-10">
-      <h1 className="font-virgil text-3xl font-bold text-[#1e1e1e]">Explore</h1>
-      <p className="mt-1 text-sm text-[#868e96]">Public drawings from the community</p>
-
-      {drawings.length === 0 ? (
-        <p className="mt-12 text-center font-virgil text-[#868e96]">
-          No public drawings yet.
-        </p>
-      ) : (
-        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {drawings.map((d) => {
-            const author = authors[d.userId];
-            return (
-              <div
-                key={d.shareId}
-                className="group relative flex flex-col border-2 border-[#e9ecef] bg-white shadow-sm transition-all hover:border-brand hover:shadow-md"
-                style={{ borderRadius: "8px 2px 6px 2px / 2px 6px 2px 8px" }}
-              >
-                <Link
-                  href={`/s/${d.shareId}`}
-                  className="absolute inset-0 z-0"
-                  aria-label={`Open ${d.title}`}
-                />
-                <div className="pointer-events-none relative z-0 flex aspect-[4/3] items-center justify-center border-b-2 border-dashed border-[#e9ecef] bg-[#f8f9fa] transition-colors group-hover:bg-brand-light">
-                  <Pencil className="h-8 w-8 text-[#dee2e6] opacity-50 transition-colors group-hover:text-brand group-hover:opacity-100" />
-                </div>
-                <div className="pointer-events-none relative z-10 p-4">
-                  <p className="mb-1.5 truncate font-virgil text-lg font-bold text-[#1e1e1e]">
-                    {d.title}
-                  </p>
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-[#868e96]">
-                    <Clock className="h-3.5 w-3.5" />
-                    {new Date(d.updatedAt).toLocaleDateString("en-IN", {
-                      timeZone: "Asia/Kolkata",
-                    })}
-                    {author && (
-                      <>
-                        <span className="mx-1">·</span>
-                        <Link
-                          href={`/u/${author.handle}`}
-                          className="pointer-events-auto hover:text-brand"
-                        >
-                          by {author.name}
-                        </Link>
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+    <div className="flex flex-1 items-start justify-center bg-[#f8f9fa] px-4 pb-8 pt-6">
+      <div
+        className="w-full max-w-lg border-2 border-[#1e1e1e] bg-white p-6 text-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+        style={{ borderRadius: "8px 2px 6px 2px / 2px 6px 2px 8px" }}
+      >
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#1e1e1e] bg-[#e5dbff] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+          <Compass className="h-8 w-8 text-brand" />
         </div>
-      )}
+
+        <h1 className="mt-3 font-virgil text-3xl font-bold text-[#1e1e1e]">
+          Explore Creators
+        </h1>
+        <p className="mx-auto mt-1.5 max-w-sm font-virgil text-base leading-snug text-[#495057]">
+          Search for authors to explore their public whiteboards, canvas
+          drawings, and shared notes.
+        </p>
+
+        <CreatorSearch />
+
+        <div
+          className="mt-4 flex gap-2.5 border-2 border-dashed border-orange-400 bg-orange-50 p-3 text-left"
+          style={{ borderRadius: "6px 2px 6px 2px / 2px 6px 2px 6px" }}
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-orange-600" />
+          <div>
+            <p className="font-virgil text-base font-bold text-orange-700">
+              Clerk Username Required
+            </p>
+            <p className="font-virgil text-sm leading-snug text-orange-600">
+              Only creators who have configured a username in their Clerk
+              profile can be discovered and have public pages.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
