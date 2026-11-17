@@ -2,8 +2,10 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { getPublicDrawingState, saveDrawing } from "@/actions/drawing";
+import CanvasToolbar from "@/components/CanvasToolbar";
 import "@excalidraw/excalidraw/index.css";
 
 const Excalidraw = dynamic(
@@ -16,8 +18,11 @@ const Excalidraw = dynamic(
 
 type Props = {
   id?: string;
+  title: string;
+  backHref: string;
   initialData: string;
-  readOnly?: boolean;
+  mode: "cloud" | "public";
+  actions?: React.ReactNode;
   // Live view: public page par ye do props do
   liveShareId?: string;
   liveSince?: string;
@@ -34,14 +39,21 @@ function parseElements(data: string) {
 
 export default function ExcalidrawCanvas({
   id,
+  title,
+  backHref,
   initialData,
-  readOnly = false,
+  mode,
+  actions,
   liveShareId,
   liveSince,
 }: Props) {
+  const readOnly = mode === "public";
   const [status, setStatus] = useState<"saved" | "saving" | "error">("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [locked, setLocked] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
+  const latest = useRef<string | null>(null);
   const lastSaved = useRef(initialData);
   const apiRef = useRef<ExcalidrawImperativeAPI | null>(null);
 
@@ -52,9 +64,23 @@ export default function ExcalidrawCanvas({
     try {
       await saveDrawing(id, json);
       lastSaved.current = json;
+      setLastSavedAt(new Date());
       setStatus("saved");
     } catch {
       setStatus("error");
+    }
+  }
+
+  async function manualSave() {
+    if (timer.current) clearTimeout(timer.current);
+    if (latest.current !== null && latest.current !== lastSaved.current) {
+      pending.current = latest.current;
+      setStatus("saving");
+      await flush();
+      toast.success("Drawing saved");
+    } else {
+      setLastSavedAt(new Date());
+      toast("Already up to date");
     }
   }
 
@@ -92,27 +118,12 @@ export default function ExcalidrawCanvas({
   }, [liveShareId, liveSince]);
 
   return (
-    <div className="relative h-[calc(100vh-var(--navbar-height,56px)-65px)] w-full">
-      {!readOnly && (
-        <span className="absolute right-4 top-3 z-10 rounded bg-white/90 px-2 py-1 text-xs text-gray-600 shadow">
-          {status === "saving" && "Saving..."}
-          {status === "saved" && "Saved"}
-          {status === "error" && "Save failed"}
-        </span>
-      )}
-
-      {liveShareId && (
-        <span className="absolute right-4 top-3 z-10 flex items-center gap-1.5 rounded bg-white/90 px-2 py-1 text-xs font-semibold text-[#fa5252] shadow">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-[#fa5252]" />
-          LIVE
-        </span>
-      )}
-
+    <div className="relative h-[calc(100vh-var(--navbar-height,56px))] w-full">
       <Excalidraw
         excalidrawAPI={(api) => {
           apiRef.current = api;
         }}
-        viewModeEnabled={readOnly}
+        viewModeEnabled={readOnly || locked}
         initialData={{
           elements: parseElements(initialData),
           appState: { viewBackgroundColor: "#ffffff" },
@@ -121,6 +132,7 @@ export default function ExcalidrawCanvas({
         onChange={(elements) => {
           if (readOnly || !id) return;
           const json = JSON.stringify(elements.filter((e) => !e.isDeleted));
+          latest.current = json;
           if (json === lastSaved.current) return;
 
           pending.current = json;
@@ -128,6 +140,19 @@ export default function ExcalidrawCanvas({
           if (timer.current) clearTimeout(timer.current);
           timer.current = setTimeout(flush, 1000);
         }}
+      />
+
+      <CanvasToolbar
+        backHref={backHref}
+        title={title}
+        mode={mode}
+        status={status}
+        lastSavedAt={lastSavedAt}
+        onSave={readOnly ? undefined : manualSave}
+        locked={locked}
+        onToggleLock={readOnly ? undefined : () => setLocked((v) => !v)}
+        live={Boolean(liveShareId)}
+        actions={actions}
       />
     </div>
   );

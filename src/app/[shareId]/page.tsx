@@ -16,29 +16,23 @@ export default async function SharedDrawingPage({
   const author = (await getAuthors([drawing.userId]))[drawing.userId];
 
   return (
-    <>
-      <header className="flex h-[65px] items-center justify-between gap-4 border-b border-gray-200 px-6">
-        <div className="min-w-0">
-          <h1 className="truncate font-virgil font-bold">{drawing.title}</h1>
-          {author && (
-            <Link
-              href={`/u/${author.handle}`}
-              className="text-xs text-[#868e96] hover:text-brand"
-            >
-              by {author.name}
-            </Link>
-          )}
-        </div>
-        <Link href="/" className="font-virgil text-sm hover:text-brand">
-          Made with SketchVault
-        </Link>
-      </header>
-      <ExcalidrawCanvas
-        initialData={drawing.data}
-        readOnly
-        liveShareId={shareId}
-        liveSince={drawing.updatedAt}
-      />
-    </>
+    <ExcalidrawCanvas
+      title={drawing.title}
+      backHref="/explore"
+      mode="public"
+      initialData={drawing.data}
+      liveShareId={shareId}
+      liveSince={drawing.updatedAt}
+      actions={
+        author ? (
+          <Link
+            href={`/u/${author.handle}`}
+            className="text-xs font-bold text-[#868e96] hover:text-brand"
+          >
+            by {author.name}
+          </Link>
+        ) : undefined
+      }
+    />
   );
 }

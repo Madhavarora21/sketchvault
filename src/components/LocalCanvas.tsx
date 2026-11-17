@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import CanvasToolbar from "@/components/CanvasToolbar";
 import { getLocalDrawing, saveLocalDrawing } from "@/lib/localDrawings";
 import { useMounted } from "@/lib/useMounted";
 import "@excalidraw/excalidraw/index.css";
@@ -31,9 +33,12 @@ function parseElements(data: string): unknown[] {
 
 export default function LocalCanvas({ id }: { id: string }) {
   const mounted = useMounted();
-  const [saved, setSaved] = useState(true);
+  const [status, setStatus] = useState<"saved" | "saving">("saved");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [locked, setLocked] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<string | null>(null);
+  const latest = useRef<string | null>(null);
 
   const state = useMemo<State>(() => {
     if (!mounted) return { status: "loading" };
@@ -42,6 +47,26 @@ export default function LocalCanvas({ id }: { id: string }) {
       ? { status: "ready", title: d.title, elements: parseElements(d.data) }
       : { status: "missing" };
   }, [mounted, id]);
+
+  function writePending() {
+    if (pending.current === null) return;
+    saveLocalDrawing(id, pending.current);
+    pending.current = null;
+    setLastSavedAt(new Date());
+    setStatus("saved");
+  }
+
+  function manualSave() {
+    if (timer.current) clearTimeout(timer.current);
+    if (latest.current !== null) {
+      pending.current = latest.current;
+      writePending();
+      toast.success("Drawing saved in this browser");
+    } else {
+      setLastSavedAt(new Date());
+      toast("Already up to date");
+    }
+  }
 
   // page chhodte waqt bacha hua kaam save kar do
   useEffect(() => {
@@ -73,40 +98,34 @@ export default function LocalCanvas({ id }: { id: string }) {
   }
 
   return (
-    <>
-      <header className="flex h-[65px] items-center justify-between gap-4 border-b border-gray-200 px-6">
-        <div className="flex min-w-0 items-center gap-4">
-          <Link href="/local" className="text-sm hover:underline">
-            ← Local Boards
-          </Link>
-          <h1 className="truncate font-semibold">{state.title}</h1>
-        </div>
-        <span className="shrink-0 text-xs text-gray-500">
-          {saved ? "Saved in this browser" : "Saving..."}
-        </span>
-      </header>
+    <div className="relative h-[calc(100vh-var(--navbar-height,56px))] w-full">
+      <Excalidraw
+        viewModeEnabled={locked}
+        initialData={{
+          elements: state.elements as never,
+          appState: { viewBackgroundColor: "#ffffff" },
+          scrollToContent: true,
+        }}
+        onChange={(elements) => {
+          const json = JSON.stringify(elements.filter((e) => !e.isDeleted));
+          latest.current = json;
+          pending.current = json;
+          setStatus("saving");
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = setTimeout(writePending, 600);
+        }}
+      />
 
-      <div className="h-[calc(100vh-65px)] w-full">
-        <Excalidraw
-          initialData={{
-            elements: state.elements as never,
-            appState: { viewBackgroundColor: "#ffffff" },
-            scrollToContent: true,
-          }}
-          onChange={(elements) => {
-            const json = JSON.stringify(elements.filter((e) => !e.isDeleted));
-            pending.current = json;
-            setSaved(false);
-            if (timer.current) clearTimeout(timer.current);
-            timer.current = setTimeout(() => {
-              if (pending.current === null) return;
-              saveLocalDrawing(id, pending.current);
-              pending.current = null;
-              setSaved(true);
-            }, 600);
-          }}
-        />
-      </div>
-    </>
+      <CanvasToolbar
+        backHref="/local"
+        title={state.title}
+        mode="local"
+        status={status}
+        lastSavedAt={lastSavedAt}
+        onSave={manualSave}
+        locked={locked}
+        onToggleLock={() => setLocked((v) => !v)}
+      />
+    </div>
   );
 }
